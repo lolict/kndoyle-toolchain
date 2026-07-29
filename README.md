@@ -1,21 +1,37 @@
-# 混元 v0.4
+# 混元 v0.5
 
 **一体混元多用 —— 一个平台，所有系统。**
 
-## 四模块并网
+## 五模块并网
 
 | 主权 | 模块 | 能力 |
 |------|------|------|
-| 运算 | `hunyuan_vm.py` / `hunyuan_vm03.py` | 64进制指令体系，极简码位寻址 |
+| 运算 | `hunyuan_vm.py` / `hunyuan_vm05.py` | 64进制指令体系 + 关系查询 + 七族指令扩展 |
 | 判断 | `hunyuan_dict.py` | 关系图范畴 + 评判引擎（净账/信任/割点/回归/死胡同/分歧/等效） |
 | 文字 | `hunyuan_codec.py` | 声韵调集装箱编码，汉字→64进制，紧致音节id+歧义索引 |
 | 硬件 | `hunyuan_gear_hw.py` | Amaranth HDL 齿轮核仿真（ALU + 三齿轮链），路径 FPGA → ASIC |
+| 机体 | `hunyuan_vm05.py` | 感知/调用/堆/通道/设备/网络/时钟 — VM 升级为可栖居的机体 |
+
+## 七族指令（v0.5 新增，opcode 36-60）
+
+| 族 | 指令 | 语义 |
+|---|---|---|
+| 感知 | SENSE / EMIT | 读传感器 / 写执行器 |
+| 调用 | CALL / RET | 函数调用 / 返回（独立调用栈） |
+| 堆 | HPALLOC / HPLOAD / HPSTORE / HPFREE | 分配 / 读 / 写 / 释放 |
+| 通道 | CHOPEN / CHSEND / CHRECV / CHCLOSE | 字节 FIFO 通道 |
+| 设备 | DEVOPEN / DEVCAP / DEVIO / DEVCLOSE | 设备句柄 + 能力位图 + IO |
+| 网络 | NETLISTEN / NETACCEPT / NETDIAL / NETSEND / NETRECV / NETCLOSE | 监听/拨号/收发 |
+| 时钟 | TICK / DELAY / TIMER | 节拍读数 / 毫秒延时 / 定时器注册 |
 
 ## 运行
 
 ```bash
 # 一体化总演示
 python hunyuan.py all
+
+# 七族指令演示（v0.5 新增）
+python hunyuan.py body
 
 # 交互 REPL
 python hunyuan.py repl
@@ -25,6 +41,7 @@ python hunyuan.py run       # 运算
 python hunyuan.py judge     # 判断
 python hunyuan.py encode    # 文字
 python hunyuan.py gear      # 硬件
+python hunyuan.py body      # 七族指令
 ```
 
 ## 依赖
@@ -45,11 +62,8 @@ python hunyuan.py gear      # 硬件
 
 ## 路线图
 
-- [x] v0.1 — 运算主权（64进制 VM）
-- [x] v0.2 — 文字主权（声韵调编码）
-- [x] v0.3 — 运算扩展 + 齿轮核仿真
 - [x] v0.4 — 四模块并网（运算/判断/文字/硬件）
-- [ ] v0.5 — 指令扩展（输入/感知、函数调用、堆、字节通道、设备能力原子、网络、时钟）
+- [x] v0.5 — 七族指令扩展（感知/调用/堆/通道/设备/网络/时钟），VM 升级为可栖居机体
 - [ ] v0.6 — FPGA 综合（Amaranth → 网表 → 烧录）
 - [ ] v1.0 — ASIC 流片（自研 RISC CPU，基底互换完成）
 
