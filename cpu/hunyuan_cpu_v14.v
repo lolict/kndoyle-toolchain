@@ -216,29 +216,50 @@ module hunyuan_cpu_v14 (
     // 前递 (forward)
     // =====================================================================
     reg [31:0] f0_0, f0_1, f1_0, f1_1;
+    // 辅助: EM 某 lane 是否写了目标 reg
+    function em_wen(input [3:0] test_rd, input [3:0] test_rd1,
+                    input [5:0] test_op, input [5:0] test_op1);
+        em_wen = (test_rd != 0 && test_op != OP_STORE && test_op != OP_NOP);
+    endfunction
     always @(*) begin
         // Lane 0 源1
         f0_0 = DE_v0_0;
-        if (EM_rd0 != 0 && EM_op0 != OP_STORE && EM_op0 != OP_NOP && EM_rd0 == DE_s0_0)
+        if (em_wen(EM_rd0, EM_rd1, EM_op0, EM_op1) && EM_rd0 == DE_s0_0)
             f0_0 = EM_alu0_out;
+        else if (em_wen(EM_rd1, EM_rd0, EM_op1, EM_op0) && EM_rd1 == DE_s0_0)
+            f0_0 = EM_alu1_out;
         else if (MW_rf_wen0 && MW_rd0 != 0 && MW_rd0 == DE_s0_0)
             f0_0 = MW_alu0_out;
+        else if (MW_rf_wen1 && MW_rd1 != 0 && MW_rd1 == DE_s0_0)
+            f0_0 = MW_alu1_out;
         // Lane 0 源2
         f0_1 = DE_v0_1;
-        if (EM_rd0 != 0 && EM_op0 != OP_STORE && EM_op0 != OP_NOP && EM_rd0 == DE_s0_1)
+        if (em_wen(EM_rd0, EM_rd1, EM_op0, EM_op1) && EM_rd0 == DE_s0_1)
             f0_1 = EM_alu0_out;
+        else if (em_wen(EM_rd1, EM_rd0, EM_op1, EM_op0) && EM_rd1 == DE_s0_1)
+            f0_1 = EM_alu1_out;
         else if (MW_rf_wen0 && MW_rd0 != 0 && MW_rd0 == DE_s0_1)
             f0_1 = MW_alu0_out;
+        else if (MW_rf_wen1 && MW_rd1 != 0 && MW_rd1 == DE_s0_1)
+            f0_1 = MW_alu1_out;
         // Lane 1 源1
         f1_0 = DE_v1_0;
-        if (EM_rd0 != 0 && EM_op0 != OP_STORE && EM_op0 != OP_NOP && EM_rd0 == DE_s1_0)
+        if (em_wen(EM_rd0, EM_rd1, EM_op0, EM_op1) && EM_rd0 == DE_s1_0)
             f1_0 = EM_alu0_out;
+        else if (em_wen(EM_rd1, EM_rd0, EM_op1, EM_op0) && EM_rd1 == DE_s1_0)
+            f1_0 = EM_alu1_out;
         else if (MW_rf_wen0 && MW_rd0 != 0 && MW_rd0 == DE_s1_0)
             f1_0 = MW_alu0_out;
+        else if (MW_rf_wen1 && MW_rd1 != 0 && MW_rd1 == DE_s1_0)
+            f1_0 = MW_alu1_out;
         // Lane 1 源2
         f1_1 = DE_v1_1;
-        if (EM_rd1 != 0 && EM_op1 != OP_STORE && EM_op1 != OP_NOP && EM_rd1 == DE_s1_1)
+        if (em_wen(EM_rd0, EM_rd1, EM_op0, EM_op1) && EM_rd0 == DE_s1_1)
+            f1_1 = EM_alu0_out;
+        else if (em_wen(EM_rd1, EM_rd0, EM_op1, EM_op0) && EM_rd1 == DE_s1_1)
             f1_1 = EM_alu1_out;
+        else if (MW_rf_wen0 && MW_rd0 != 0 && MW_rd0 == DE_s1_1)
+            f1_1 = MW_alu0_out;
         else if (MW_rf_wen1 && MW_rd1 != 0 && MW_rd1 == DE_s1_1)
             f1_1 = MW_alu1_out;
     end
