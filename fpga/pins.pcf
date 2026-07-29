@@ -1,0 +1,10 @@
+# 混元顶层引脚约束（Tang Nano 9K / iCE40UP5K）
+set_io clk    52
+set_io rst     2
+set_io led[0] 10
+set_io led[1] 11
+set_io led[2] 12
+set_io led[3] 13
+set_io led[4] 14
+set_io led[5] 15
+set_io led[6] 16

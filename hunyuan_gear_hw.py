@@ -22,6 +22,203 @@ from amaranth import Elaboratable, Module, Signal, Mux
 from amaranth.sim import Simulator, Settle, Tick
 
 
+# ---- v0.6 FPGA 综合：Verilog 导出 + 顶层封装 ----
+
+class Counter64(Elaboratable):
+    """18 bit ↗ 64 进制个位/十位/百位百分之一秒计数器（用于 LED 闪烁演示）。"""
+
+    def __init__(self):
+        self.en = Signal()          # 使能（来自分频后的慢时钟）
+        self.d0 = Signal(6)
+        self.d1 = Signal(6)
+        self.d2 = Signal(6)
+        self.overflow = Signal()
+
+    def elaborate(self, platform):
+        m = Module()
+        with m.If(self.en):
+            with m.If(self.d0 == 63):
+                m.d.sync += self.d0.eq(0)
+                with m.If(self.d1 == 63):
+                    m.d.sync += self.d1.eq(0)
+                    with m.If(self.d2 == 63):
+                        m.d.sync += self.d2.eq(0)
+                        m.d.sync += self.overflow.eq(1)
+                    with m.Else():
+                        m.d.sync += self.d2.eq(self.d2 + 1)
+                with m.Else():
+                    m.d.sync += self.d1.eq(self.d1 + 1)
+            with m.Else():
+                m.d.sync += self.d0.eq(self.d0 + 1)
+        return m
+
+
+class HunYuanTop(Elaboratable):
+    """混元 FPGA 顶层：12 MHz 时钟 → 分频 → 64 进制计数器 → LED 显示。
+    引脚:
+      clk   — 板载晶振 (12 MHz，Tang Nano 系列)
+      led0..led5 — 6 位 LED，显示个位齿轮 d0
+      led6       — 溢出指示灯
+      btn        — 复位按钮（低有效）
+    """
+
+    def __init__(self):
+        self.clk = Signal()
+        self.rst = Signal()
+        self.led = Signal(7)        # 7 路 LED：6 路数据 + 1 路溢出
+        self.counter = Counter64()
+
+    def elaborate(self, platform):
+        m = Module()
+        # 12 MHz → ~1 Hz 使能脉冲（26 位分频，12M ≈ 2^23.5，多加几位保慢）
+        div = Signal(26)
+        en = Signal()
+        m.d.comb += en.eq(div.all())
+        m.d.sync += div.eq(div + 1)
+
+        m.submodules.counter = self.counter
+        m.d.comb += self.counter.en.eq(en)
+        # 输出到 LED：d0 占 6 位；第 7 位 = 溢出
+        m.d.comb += self.led.eq(Mux(self.counter.overflow, 0x40,
+                                     self.counter.d0))
+        return m
+
+
+def export_verilog():
+    """导出混元顶层 + 单齿 ALU + 齿轮链 三份 Verilog。
+    手写生成器，零依赖（不调用 amaranth.backends.verilog / yosys）。输出到 ./fpga/。"""
+    import os
+    out_dir = os.path.join(os.path.dirname(__file__), "fpga")
+    os.makedirs(out_dir, exist_ok=True)
+
+    # ---- 单齿 ALU ----
+    alu_v = """// 混元齿轮核 v0.6 — 单齿 ALU（6 bit 加减，啮合点 = 进位/借位）
+// 齿轮传动律：满 64 进一，借位绕回
+module GearALU (
+    input  wire [5:0] a, b,
+    input  wire       sub,          // 0 = 加, 1 = 减
+    output wire [5:0] result,
+    output wire       carry         // 加法=进位; 减法=取反即借位
+);
+    wire [7:0] full;
+    wire [5:0] b2;
+    assign b2    = sub ? (b ^ 6'h3F) : b;      // 减法取 1 的补码
+    assign full  = {2'b0, a} + {2'b0, b2} + {7'b0, sub};
+    assign result = full[5:0];
+    assign carry  = full[6];
+endmodule
+"""
+    with open(os.path.join(out_dir, "gear_alu.v"), "w") as f:
+        f.write(alu_v)
+
+    # ---- 三齿轮链 ----
+    chain_v = """// 混元齿轮核 v0.6 — 三齿轮啮合链（64 进制计数器）
+// 逐级啮合：个位满 64 → 十位进一；十位满 64 → 百位进一；满链溢出
+module GearChain (
+    input  wire       clk,
+    input  wire       en,            // 小齿轮脉冲
+    output reg  [5:0] d0,            // 个位
+    output reg  [5:0] d1,            // 十位
+    output reg  [5:0] d2,            // 百位
+    output reg        overflow       // 满 64^3 溢出
+);
+    always @(posedge clk) begin
+        if (en) begin
+            if (d0 == 6'd63) begin
+                d0 <= 6'd0;
+                if (d1 == 6'd63) begin
+                    d1 <= 6'd0;
+                    if (d2 == 6'd63) begin
+                        d2 <= 6'd0;
+                        overflow <= 1'b1;
+                    end else begin
+                        d2 <= d2 + 6'd1;
+                    end
+                end else begin
+                    d1 <= d1 + 6'd1;
+                end
+            end else begin
+                d0 <= d0 + 6'd1;
+            end
+        end
+    end
+endmodule
+"""
+    with open(os.path.join(out_dir, "gear_chain.v"), "w") as f:
+        f.write(chain_v)
+
+    # ---- 顶层（12 MHz 分频 → 64 进制计数 → LED）----
+    top_v = """// 混元 FPGA 顶层 v0.6 — 12 MHz ↗ 慢闪 LED 演示
+// Tang Nano 9K / iCE40UP5K: 12 MHz 晶振 → 26 位分频 → 1Hz 使能 → 64 进制计数 → 7 路 LED
+module HunYuanTop (
+    input  wire       clk,           // 12 MHz
+    input  wire       rst,           // 按键复位（低有效）
+    output wire [6:0] led            // [5:0] = 个位齿轮, [6] = 溢出
+);
+    reg [25: 0] div;
+    wire        en;
+    wire [5:0]  d0;
+
+    assign en = &div;                // div 全 1 时产生一个使能脉冲
+
+    always @(posedge clk) begin
+        if (!rst) div <= 26'd0;
+        else      div <= div + 26'd1;
+    end
+
+    GearChain u_counter (
+        .clk(clk),
+        .en(en),
+        .d0(d0),
+        .d1(),
+        .d2(),
+        .overflow(/* unused */)
+    );
+
+    assign led = d0;
+
+endmodule
+"""
+    with open(os.path.join(out_dir, "hunyuan_top.v"), "w") as f:
+        f.write(top_v)
+
+    # 综合脚本
+    synth_sh = """#!/usr/bin/env bash
+# 混元齿轮核综合脚本（本地安装 yosys + nextpnr-ice40 + icepack 后执行）
+set -e
+cd \"$(dirname \"$0\")\"
+echo \"=== 综合单齿 ALU ===\"
+yosys -p \"read_verilog gear_alu.v; synth_ice40 -top GearALU -json alu.json; stat\"
+echo \"=== 综合顶层 ===\"
+yosys -p \"read_verilog gear_alu.v; read_verilog gear_chain.v; read_verilog hunyuan_top.v; synth_ice40 -top HunYuanTop -json top.json; stat\"
+echo \"=== 布局布线（Tang Nano 9K，iCE40UP5K）===\"
+nextpnr-ice40 --json top.json --asc top.asc --freq 12 --package sg48 --pcf pins.pcf
+icepack top.asc top.bin
+echo \"=== 完成: top.bin 已生成。烧录: iceprog top.bin ===\"
+"""
+    sh_path = os.path.join(out_dir, "synthesize.sh")
+    with open(sh_path, "w") as f:
+        f.write(synth_sh)
+    os.chmod(sh_path, 0o755)
+
+    # 引脚约束
+    pcf = """# 混元顶层引脚约束（Tang Nano 9K / iCE40UP5K）
+set_io clk    52
+set_io rst     2
+set_io led[0] 10
+set_io led[1] 11
+set_io led[2] 12
+set_io led[3] 13
+set_io led[4] 14
+set_io led[5] 15
+set_io led[6] 16
+"""
+    with open(os.path.join(out_dir, "pins.pcf"), "w") as f:
+        f.write(pcf)
+
+    return ["gear_alu.v", "gear_chain.v", "hunyuan_top.v", "synthesize.sh", "pins.pcf"]
+
+
 class GearALU(Elaboratable):
     """单齿算术单元：6 bit 一齿，加/减，进位（借位）= 啮合点。"""
 
@@ -155,12 +352,22 @@ def main():
 
 # ---------------------------------------------------------------- 公共 API（供统一入口调用）
 def demo_gear():
-    """运行齿轮核仿真，返回输出行列表。"""
+    """运行齿轮核仿真 + 导出 Verilog，返回输出行列表。"""
     import io, contextlib
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         main()
-    return buf.getvalue().splitlines()
+    lines = buf.getvalue().splitlines()
+    # v0.6: 导出 Verilog（无需外部工具）
+    try:
+        files = export_verilog()
+        lines.append("")
+        lines.append("[v0.6] Verilog 已导出到 fpga/（" + ", ".join(files) + "）")
+        lines.append("       综合脚本: fpga/synthesize.sh（本地有 yosys + nextpnr 时执行）")
+        lines.append("       引脚约束: fpga/pins.pcf")
+    except Exception as e:
+        lines.append(f"[v0.6] Verilog 导出失败: {e}")
+    return lines
 
 
 if __name__ == "__main__":

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-混元一体化入口 (HunYuan Unified) v0.5
+混元一体化入口 (HunYuan Unified) v0.6
 =====================================
-并网五大模块，一个程序同时调度：
+并网五大模块 + FPGA 流程：
 
   解释器  hunyuan_vm05  运算主权  +  运行时关系查询（REL 指令族）
                            +  七族指令扩展（感知/调用/堆/通道/设备/网络/时钟）
   转码器  hunyuan_codec  文字主权  +  声韵调混合进制 + 新字体
   齿轮核  hunyuan_gear   硬件主权（软件仿真）+ 64 进制齿轮啮合
   字典集  hunyuan_dict   判断主权  +  关系家族 +  评判引擎
+  FPGA    hunyuan_gear   Verilog 导出 + 综合脚本 + 引脚约束（Tang Nano 9K）
 
 全部本地、零依赖、零网络、零 token。
 
@@ -21,6 +22,7 @@
   python3 hunyuan.py judge <主体>
   python3 hunyuan.py family <成员>
   python3 hunyuan.py gear      齿轮核仿真
+  python3 hunyuan.py fpga      Verilog 导出 + 综合脚本
   python3 hunyuan.py body      七族指令演示（v0.5 新增）
   python3 hunyuan.py all       一体化总演示
 """
@@ -36,7 +38,7 @@ sys.path.insert(0, HERE)
 from hunyuan_dict import 字典集, 评判引擎  # noqa: E402
 from hunyuan_vm05 import run as vm_run, build_fate_context as vm_context, OPS, REL_FLOW  # noqa: E402
 from hunyuan_codec import encode_text, hunyuan_decode  # noqa: E402
-from hunyuan_gear_hw import demo_gear  # noqa: E402
+from hunyuan_gear_hw import demo_gear, export_verilog  # noqa: E402
 
 
 # =====================================================================
@@ -121,6 +123,13 @@ class 混元:
     def 齿轮(self):
         return demo_gear()
 
+    # ---- 6. FPGA (v0.6 新增) ----
+    def fpga(self):
+        """导出 Verilog + 写综合脚本，返回导出报告。"""
+        files = export_verilog()
+        return {"导出文件": files, "目录": "fpga/",
+                "下一步": "本地装 yosys + nextpnr-ice40，然后 fpga/synthesize.sh"}
+
     # ---- 5. 七族指令 (v0.5 新增) ----
     def 机体(self):
         """七族指令v0.5 演示：感知/调用/堆/通道/设备/网络/时钟。"""
@@ -170,7 +179,7 @@ class 混元:
     # ---- 总演示 ----
     def 总演示(self):
         print("=" * 60)
-        print("混元一体化总演示 v0.5 —— 七族指令扩展")
+        print("混元一体化总演示 v0.6 —— 七族指令扩展 + FPGA 导出")
         print("=" * 60)
         print("\n【1. 运算主权】Σ(1..100) =", self.运算(100))
         print("\n【2. 判断主权】净账/信任/割点/回归/死胡同:")
@@ -186,9 +195,15 @@ class 混元:
         body = self.机体()
         for line in body["out"]:
             print("  ", line)
+        print("\n【6. FPGA 主权】Verilog 导出（零依赖）")
+        fpga = self.fpga()
+        for fn in fpga["导出文件"]:
+            print("   ", fn)
+        print("    目录:", fpga["目录"])
+        print("    下一步:", fpga["下一步"])
         print("\n" + "=" * 60)
-        print("混元 v0.5 完成。数据全在本地，不依赖任何外部服务。")
-        print("七族指令让 VM 从计算器升级为可栖居的机体。")
+        print("混元 v0.6 完成。数据全在本地，不依赖任何外部服务。")
+        print("七族指令让 VM 升级为可栖居机体；Verilog 导出让硬件触手可及。")
 
 
 # =====================================================================
@@ -259,8 +274,11 @@ def main():
     elif cmd == "gear":
         for line in y.齿轮():
             print(line)
+    elif cmd == "fpga":
+        r = y.fpga()
+        print(r)
     else:
-        print(f"未知命令 {cmd}。可用: all / body / run / judge / family / encode / gear / (无参数进 REPL)")
+        print(f"未知命令 {cmd}。可用: all / body / run / judge / family / encode / gear / fpga / (无参数进 REPL)")
 
 
 if __name__ == "__main__":

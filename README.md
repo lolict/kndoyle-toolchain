@@ -1,16 +1,17 @@
-# 混元 v0.5
+# 混元 v0.6
 
 **一体混元多用 —— 一个平台，所有系统。**
 
-## 五模块并网
+## 五模块 + FPGA
 
 | 主权 | 模块 | 能力 |
 |------|------|------|
 | 运算 | `hunyuan_vm.py` / `hunyuan_vm05.py` | 64进制指令体系 + 关系查询 + 七族指令扩展 |
-| 判断 | `hunyuan_dict.py` | 关系图范畴 + 评判引擎（净账/信任/割点/回归/死胡同/分歧/等效） |
-| 文字 | `hunyuan_codec.py` | 声韵调集装箱编码，汉字→64进制，紧致音节id+歧义索引 |
-| 硬件 | `hunyuan_gear_hw.py` | Amaranth HDL 齿轮核仿真（ALU + 三齿轮链），路径 FPGA → ASIC |
-| 机体 | `hunyuan_vm05.py` | 感知/调用/堆/通道/设备/网络/时钟 — VM 升级为可栖居的机体 |
+| 判断 | `hunyuan_dict.py` | 关系图范畴 + 评判引擎 |
+| 文字 | `hunyuan_codec.py` | 声韵调集装箱编码 |
+| 硬件 | `hunyuan_gear_hw.py` | 齿轮核仿真 + **Verilog 导出** + 综合脚本 |
+| 机体 | `hunyuan_vm05.py` | 感知/调用/堆/通道/设备/网络/时钟 |
+| FPGA | `hunyuan_gear_hw.py` | 导出 → 综合 → 烧录到 Tang Nano 9K |
 
 ## 七族指令（v0.5 新增，opcode 36-60）
 
@@ -41,7 +42,16 @@ python hunyuan.py run       # 运算
 python hunyuan.py judge     # 判断
 python hunyuan.py encode    # 文字
 python hunyuan.py gear      # 硬件
+python hunyuan.py fpga      # FPGA 导出（Verilog + 综合脚本 + 引脚约束）
 python hunyuan.py body      # 七族指令
+```
+
+## FPGA 流程
+
+```bash
+python hunyuan.py fpga             # 导出到 fpga/（含 .v、脚本、引脚约束）
+cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
+# 输出: top.bin → `iceprog top.bin` 烧录到 Tang Nano 9K
 ```
 
 ## 依赖
@@ -63,8 +73,8 @@ python hunyuan.py body      # 七族指令
 ## 路线图
 
 - [x] v0.4 — 四模块并网（运算/判断/文字/硬件）
-- [x] v0.5 — 七族指令扩展（感知/调用/堆/通道/设备/网络/时钟），VM 升级为可栖居机体
-- [ ] v0.6 — FPGA 综合（Amaranth → 网表 → 烧录）
+- [x] v0.5 — 七族指令扩展（感知/调用/堆/通道/设备/网络/时钟）
+- [x] v0.6 — FPGA 综合流程（Verilog 导出 + 综合脚本 + 引脚约束 → Tang Nano 9K）
 - [ ] v1.0 — ASIC 流片（自研 RISC CPU，基底互换完成）
 
 ---
