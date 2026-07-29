@@ -86,7 +86,8 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 | `cpu/hunyuan_cpu.v` | 多周期 RISC (v1.0, 基础版) |
 | `cpu/hunyuan_cpu_pipelined.v` | **5级流水 RISC** (IF/ID/EX/MEM/WB) |
 | `cpu/cache.v` | I-Cache + D-Cache (64行×4字, write-through) |
-| `cpu/periph.v` | 外设 IP: Timer(2ch) + PWM(3ch) + I2C + DMA |
+| `cpu/periph.v` | Timer(2ch) + PWM(3ch) + I2C Master + DMA |
+| `cpu/periph_x.v` | **SPI Master** + **Ethernet MAC** + **USB Device** |
 | `cpu/hunyuan_soc_v11.v` | SoC 顶层 (CPU + Cache + 外设) |
 | `cpu/tb_pipeline.v` | 流水线测试平台 |
 
@@ -94,6 +95,7 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 - 5级流水, 前递(forwarding), load-use hazard stall
 - I/D 分离 Cache (Harvard), write-through + write-allocate
 - 外设内存映射: Timer@0x3000_0000, PWM@0x3000_0010, I2C@0x3000_0020, DMA@0x3000_0030
+                 SPI@0x3000_0040, EthMAC@0x3000_0050, USB@0x3000_0060
 
 **综合目标:** SkyWater 130nm, ~35K gates (含 Cache + IP), ~1.5mm²
 **验证:** `iverilog cpu/hunyuan_cpu_pipelined.v cpu/tb_pipeline.v -o sim && vvp sim`

@@ -12,7 +12,7 @@
   字典集  hunyuan_dict   判断主权  +  关系家族 +  评判引擎
   FPGA    hunyuan_gear   Verilog 导出 + 综合脚本 + 引脚约束（Tang Nano 9K）
   CPU     cpu/           流水线 RISC (5级) + Cache + Caravel 封装
-  外设IP  cpu/periph.v    Timer + PWM + I2C + DMA
+  外设IP  cpu/periph.v + periph_x.v  Timer + PWM + I2C + DMA + SPI + ETH + USB
 
 全部本地、零依赖、零网络、零 token。
 
@@ -205,14 +205,14 @@ class 混元:
         print("    下一步:", fpga["下一步"])
         print("\n【7. CPU 主权】流水线 RISC v1.1 + Cache + 外设 IP")
         cpu_files = ["cpu/hunyuan_cpu.v", "cpu/hunyuan_cpu_pipelined.v",
-                     "cpu/cache.v", "cpu/periph.v",
+                     "cpu/cache.v", "cpu/periph.v", "cpu/periph_x.v",
                      "cpu/hunyuan_soc_v11.v",
                      "cpu/tb_pipeline.v", "tapeout/caravel_wrapper.v"]
         for fn in cpu_files:
             print("   ", fn)
         print("   5级流水: IF/ID/EX/MW/WB + 前递 + branch flush")
         print("   I/D-Cache: 64行 × 4字, write-through/allocate")
-        print("   IP: Timer(2ch) + PWM(3ch) + I2C Master + DMA")
+        print("   IP: Timer(2ch) + PWM(3ch) + I2C + DMA + SPI + ETH + USB")
         print("\n" + "=" * 60)
         print("混元 v1.1 完成。流水线 CPU + Cache + 外设 IP，全部本地。")
 
