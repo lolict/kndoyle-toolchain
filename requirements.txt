@@ -1,0 +1,2 @@
+pypinyin>=0.50
+amaranth>=0.5
