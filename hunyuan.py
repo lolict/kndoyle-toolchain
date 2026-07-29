@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-混元一体化入口 (HunYuan Unified) v1.0
+混元一体化入口 (HunYuan Unified) v1.4
 =====================================
 并网六大模块 + FPGA 流片：
 
@@ -11,9 +11,10 @@
   齿轮核  hunyuan_gear   硬件主权（软件仿真）+ 64 进制齿轮啮合
   字典集  hunyuan_dict   判断主权  +  关系家族 +  评判引擎
   FPGA    hunyuan_gear   Verilog 导出 + 综合脚本 + 引脚约束（Tang Nano 9K）
-  CPU     cpu/           流水线 RISC (5级) + Cache + Caravel 封装
+  CPU     cpu/           超标量双发射 RISC v1.4 + Cache + Caravel 封装
   外设IP  cpu/periph.v + periph_x.v  Timer + PWM + I2C + DMA + SPI + ETH + USB
   OoO      cpu/hunyuan_cpu_v13.v  2-bit 分支预测 + 8-entry ROB + 寄存器重命名
+  双发射   cpu/hunyuan_cpu_v14.v  超标量双发射 + 硬件乘除法 + 配对感知汇编器
 
 全部本地、零依赖、零网络、零 token。
 
@@ -182,7 +183,7 @@ class 混元:
     # ---- 总演示 ----
     def 总演示(self):
         print("=" * 60)
-        print("混元一体化总演示 v1.3 —— 七族指令 + FPGA + OoO CPU + Cache + IP")
+        print("混元一体化总演示 v1.4 —— 七族指令 + FPGA + 双发射 CPU + Cache + IP")
         print("=" * 60)
         print("\n【1. 运算主权】Σ(1..100) =", self.运算(100))
         print("\n【2. 判断主权】净账/信任/割点/回归/死胡同:")
@@ -204,21 +205,28 @@ class 混元:
             print("   ", fn)
         print("    目录:", fpga["目录"])
         print("    下一步:", fpga["下一步"])
-        print("\n【7. CPU 主权】流水线 RISC v1.1 + Cache + 外设 IP")
+        print("\n【7. CPU 主权】超标量双发射 v1.4 (MUL/DIV + BHT/BTB) + Cache + 外设 IP")
         cpu_files = ["cpu/hunyuan_cpu.v", "cpu/hunyuan_cpu_pipelined.v",
                      "cpu/hunyuan_cpu_v13.v",
                      "cpu/cache.v", "cpu/periph.v", "cpu/periph_x.v",
                      "cpu/hunyuan_soc_v11.v",
                      "cpu/tb_pipeline.v", "cpu/tb_v13.v",
+                     "cpu/hunyuan_cpu_v14.v", "cpu/tb_v14.v",
+                     "cpu/gen_progs_v14.py",
                      "tapeout/caravel_wrapper.v"]
         for fn in cpu_files:
             print("   ", fn)
-        print("   v1.3 新特性:")
+        print("   v1.4 新特性 (双发射超标量):")
+        print("   64-bit fetch bundle → 双 lane 译码/EX/WB")
+        print("   硬件 Booth 乘法 (4 周期) + 非恢复除法 (8 周期)")
+        print("   静态配对: ALU+ALU, ALU+MEM, ALU+MUL; 禁 双MEM/双分支/双MUL/RAW/WAW")
         print("   2-bit 动态分支预测 + BTB (64-entry BHT, 32-entry BTB)")
-        print("   8-entry ROB 乱序执行 + 寄存器重命名 (16→32 物理)")
+        print("   配对感知汇编器 (gen_progs_v14.py) + 自动 NOP 填充")
+        print("   v1.3 继承: 8-entry ROB OoO + 寄存器重命名")
         print("   5级流水 + 前递 + load-under-miss D-Cache")
+        print("   Caravel 封装路径: tapeout/caravel_wrapper.v")
         print("\n" + "=" * 60)
-        print("混元 v1.3 完成。2-bit 分支预测 + ROB OoO + Cache + 外设 IP，全部本地。")
+        print("混元 v1.4 完成。超标量双发射 + 硬件乘除法 + 分支预测 + 配对感知汇编器，全部本地。")
 
 
 # =====================================================================

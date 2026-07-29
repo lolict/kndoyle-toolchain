@@ -1,4 +1,4 @@
-# 混元 v1.3
+# 混元 v1.4
 
 **一体混元多用 —— 一个平台，所有系统。**
 
@@ -12,7 +12,8 @@
 | 硬件 | `hunyuan_gear_hw.py` | 齿轮核仿真 + Verilog 导出 + 综合脚本 |
 | 机体 | `hunyuan_vm05.py` | 感知/调用/堆/通道/设备/网络/时钟 |
 | FPGA | `fpga/` | 导出 → 综合 → 烧录到 Tang Nano 9K |
-| CPU | `cpu/` | **流水线 RISC v1.3** + Cache + 外设 IP + Caravel |
+| CPU | `cpu/` | **超标量双发射 RISC v1.4** + Cache + 外设 IP + Caravel |
+| 双发射 | `cpu/hunyuan_cpu_v14.v` | 超标量双发射 + 硬件 MUL/DIV + 配对感知汇编器 |
 | OoO | `cpu/hunyuan_cpu_v13.v` | 2-bit 分支预测 + 8-entry ROB + 寄存器重命名 |
 
 ## 七族指令（v0.5 新增，opcode 36-60）
@@ -81,8 +82,9 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 - [x] v1.1 — 流水线 CPU (5级) + Cache (I/D) + 外设 IP (Timer/PWM/I2C/DMA)
 - [x] v1.2 — 扩展外设 IP (SPI + Ethernet MAC + USB Device)
 - [x] v1.3 — OoO 执行: 2-bit 分支预测 + 8-entry ROB + 寄存器重命名
+- [x] v1.4 — **超标量双发射**: 64-bit fetch bundle + 双 lane EX/WB + 硬件 MUL/DIV + 静态配对规则
 
-## CPU v1.3 (流水线 + OoO + Cache + 外设)
+## CPU v1.4 (超标量双发射 + MUL/DIV + Cache + 外设)
 
 | 文件 | 作用 |
 |------|------|
@@ -95,17 +97,27 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 | `cpu/tb_pipeline.v` | 流水线测试平台 |
 | `cpu/hunyuan_cpu_v13.v` | **v1.3**: OoO + 分支预测 + ROB |
 | `cpu/tb_v13.v` | v1.3 测试平台 |
+| `cpu/hunyuan_cpu_v14.v` | **v1.4**: 超标量双发射 + 硬件乘除法 |
+| `cpu/tb_v14.v` | v1.4 测试平台 (Σ5050 + MUL/DIV) |
+| `cpu/gen_progs_v14.py` | 配对感知汇编器 (自动配对 + NOP 填充) |
 
-**架构 (v1.3):**
-- 5级流水, 前递(forwarding), load-use hazard stall
-- **2-bit 动态分支预测 + BTB** (64-entry BHT, 32-entry BTB)
-- **8-entry ROB 乱序执行 + 寄存器重命名** (16 物理 → 32 物理)
-- I/D 分离 Cache (Harvard), write-through + write-allocate
-- 外设内存映射: Timer@0x3000_0000, PWM@0x3000_0010, I2C@0x3000_0020, DMA@0x3000_0030
-                 SPI@0x3000_0040, EthMAC@0x3000_0050, USB@0x3000_0060
+**架构 (v1.4 — 超标量双发射):**
 
-**综合目标:** SkyWater 130nm, ~45K gates (含 Cache + IP + OoO), ~1.8mm²
-**验证:** `iverilog cpu/hunyuan_cpu_v13.v cpu/tb_v13.v -o sim && vvp sim`
+| 模块 | 规格 |
+|------|------|
+| Fetch | 64-bit fetch bundle (2 × 32-bit) |
+| Decode | 双 Lane 译码, 组合逻辑配对规则 |
+| EX | Lane-0: ALU + branch + address; Lane-1: ALU + MUL + DIV |
+| MEM/WB | 双通道; 32 寄存器 4R/2W; WAW 时端口 0 优先 |
+| 配对规则 | ALU+ALU, ALU+MEM, ALU+MUL 允许; 禁 双MEM/双分支/双MUL/RAW/WAW |
+| MUL/DIV | Booth 乘法 4 周期, 非恢复除法 8 周期; Lane-1 优先 |
+| 分支预测 | 2-bit 饱和计数器 + BTB (64 BHT, 32 BTB) |
+
+**测试:** `Σ(1..100)=5050` · `25×17=425` · `1000/13=76`
+
+**综合目标:** SkyWater 130nm, ~55K gates (含 Cache + IP + 双发射 + MUL/DIV)
+**验证 (RTL):** `iverilog cpu/hunyuan_cpu_v14.v cpu/tb_v14.v -o sim && vvp sim`
+**验证 (行为):** `cd cpu && python3 gen_progs_v14.py && python3 sim_v14.py`
 
 ---
 
