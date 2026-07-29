@@ -195,5 +195,34 @@ def main():
           f"3→2.25 已达成，3→2 可期")
 
 
+# ---------------------------------------------------------------- 公共 API（供统一入口调用）
+def make_table(text):
+    """构建码表（构建期握手一次）。"""
+    return build_tables(text)
+
+
+def hunyuan_encode(text, table):
+    """文本 → (字节, 位数)。紧致编码。"""
+    return encode(table, text, naive=False)
+
+
+def hunyuan_decode(data, nbits, table):
+    """(字节, 位数) → 文本。"""
+    return decode(table, data, nbits)
+
+
+def encode_text(text):
+    """一站式编码：自动建码表并编码，返回 (字节, 位数, 码表, 报告)。"""
+    tab = make_table(text)
+    data, nbits = hunyuan_encode(text, tab)
+    report = {
+        "utf8": len(text.encode("utf-8")),
+        "hunyuan": len(data),
+        "ratio": f"{len(data)/max(1,len(text.encode('utf-8'))):.0%}",
+        "per_char_bit": round(nbits / max(1, len([c for c in text if c.strip()])), 1),
+    }
+    return data, nbits, tab, report
+
+
 if __name__ == "__main__":
     main()

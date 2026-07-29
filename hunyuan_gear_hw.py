@@ -153,5 +153,15 @@ def main():
     print("       语义不变，基底互换，这就是软硬件一体化的第一步。")
 
 
+# ---------------------------------------------------------------- 公共 API（供统一入口调用）
+def demo_gear():
+    """运行齿轮核仿真，返回输出行列表。"""
+    import io, contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        main()
+    return buf.getvalue().splitlines()
+
+
 if __name__ == "__main__":
     main()
