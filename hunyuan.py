@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-混元一体化入口 (HunYuan Unified) v0.6
+混元一体化入口 (HunYuan Unified) v1.0
 =====================================
-并网五大模块 + FPGA 流程：
+并网六大模块 + FPGA 流片：
 
   解释器  hunyuan_vm05  运算主权  +  运行时关系查询（REL 指令族）
                            +  七族指令扩展（感知/调用/堆/通道/设备/网络/时钟）
@@ -11,6 +11,7 @@
   齿轮核  hunyuan_gear   硬件主权（软件仿真）+ 64 进制齿轮啮合
   字典集  hunyuan_dict   判断主权  +  关系家族 +  评判引擎
   FPGA    hunyuan_gear   Verilog 导出 + 综合脚本 + 引脚约束（Tang Nano 9K）
+  CPU     cpu/           RISC Verilog RTL + Caravel 封装 + 流片指引
 
 全部本地、零依赖、零网络、零 token。
 
@@ -179,7 +180,7 @@ class 混元:
     # ---- 总演示 ----
     def 总演示(self):
         print("=" * 60)
-        print("混元一体化总演示 v0.6 —— 七族指令扩展 + FPGA 导出")
+        print("混元一体化总演示 v1.0 —— 七族指令 + FPGA + CPU")
         print("=" * 60)
         print("\n【1. 运算主权】Σ(1..100) =", self.运算(100))
         print("\n【2. 判断主权】净账/信任/割点/回归/死胡同:")
@@ -201,9 +202,15 @@ class 混元:
             print("   ", fn)
         print("    目录:", fpga["目录"])
         print("    下一步:", fpga["下一步"])
+        print("\n【7. CPU 主权】RISC RTL 设计 (Verilog, Caravel/Kunal)")
+        cpu_files = ["cpu/hunyuan_cpu.v", "cpu/hunyuan_soc.v",
+                     "cpu/tb_hunyuan_cpu.v", "tapeout/caravel_wrapper.v",
+                     "tapeout/README.md"]
+        for fn in cpu_files:
+            print("   ", fn)
         print("\n" + "=" * 60)
-        print("混元 v0.6 完成。数据全在本地，不依赖任何外部服务。")
-        print("七族指令让 VM 升级为可栖居机体；Verilog 导出让硬件触手可及。")
+        print("混元 v1.0 完成。从软件解释器到 RTL 处理器，全部本地。")
+        print("七族指令让 VM 升级为可栖居机体；CPU RTL 让硬件流片触手可及。")
 
 
 # =====================================================================

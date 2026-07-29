@@ -1,17 +1,18 @@
-# 混元 v0.6
+# 混元 v1.0
 
 **一体混元多用 —— 一个平台，所有系统。**
 
-## 五模块 + FPGA
+## 六模块 + 流片
 
 | 主权 | 模块 | 能力 |
 |------|------|------|
 | 运算 | `hunyuan_vm.py` / `hunyuan_vm05.py` | 64进制指令体系 + 关系查询 + 七族指令扩展 |
 | 判断 | `hunyuan_dict.py` | 关系图范畴 + 评判引擎 |
 | 文字 | `hunyuan_codec.py` | 声韵调集装箱编码 |
-| 硬件 | `hunyuan_gear_hw.py` | 齿轮核仿真 + **Verilog 导出** + 综合脚本 |
+| 硬件 | `hunyuan_gear_hw.py` | 齿轮核仿真 + Verilog 导出 + 综合脚本 |
 | 机体 | `hunyuan_vm05.py` | 感知/调用/堆/通道/设备/网络/时钟 |
-| FPGA | `hunyuan_gear_hw.py` | 导出 → 综合 → 烧录到 Tang Nano 9K |
+| FPGA | `fpga/` | 导出 → 综合 → 烧录到 Tang Nano 9K |
+| CPU | `cpu/` `tapeout/` | RISC RTL + SoC + Caravel 封装 + 流片指引 |
 
 ## 七族指令（v0.5 新增，opcode 36-60）
 
@@ -75,7 +76,21 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 - [x] v0.4 — 四模块并网（运算/判断/文字/硬件）
 - [x] v0.5 — 七族指令扩展（感知/调用/堆/通道/设备/网络/时钟）
 - [x] v0.6 — FPGA 综合流程（Verilog 导出 + 综合脚本 + 引脚约束 → Tang Nano 9K）
-- [ ] v1.0 — ASIC 流片（自研 RISC CPU，基底互换完成）
+- [x] v1.0 — RISC CPU RTL（Verilog）+ Caravel 封装 + Efabless 流片路径
+
+## CPU v1.0 (新增)
+
+| 文件 | 作用 |
+|------|------|
+| `cpu/hunyuan_cpu.v` | 多周期 RISC 处理器 (16 regs, 32-bit, Wishbone) |
+| `cpu/hunyuan_soc.v` | SoC 顶层 (CPU + ROM + SRAM + UART) |
+| `cpu/tb_hunyuan_cpu.v` | 测试平台 (Sigma(1..100)=5050) |
+| `tapeout/caravel_wrapper.v` | Caravel 用户项目封装 (GPIO / LA / IRQ) |
+| `tapeout/README.md` / `constraints.sdc` | 流片指引 + 综合约束 |
+
+**综合策略**: SkyWater 130nm, 15K gates, ~1.2mm^2, 100MHz
+**验证**: `iverilog cpu/hunyuan_cpu.v cpu/tb_hunyuan_cpu.v -o sim && vvp sim`
+**流片路径**: Efabless Caravel + OpenMPW Shuttle (零费用 MPW)
 
 ---
 
