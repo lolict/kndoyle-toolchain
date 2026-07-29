@@ -13,6 +13,7 @@
   FPGA    hunyuan_gear   Verilog 导出 + 综合脚本 + 引脚约束（Tang Nano 9K）
   CPU     cpu/           流水线 RISC (5级) + Cache + Caravel 封装
   外设IP  cpu/periph.v + periph_x.v  Timer + PWM + I2C + DMA + SPI + ETH + USB
+  OoO      cpu/hunyuan_cpu_v13.v  2-bit 分支预测 + 8-entry ROB + 寄存器重命名
 
 全部本地、零依赖、零网络、零 token。
 
@@ -181,7 +182,7 @@ class 混元:
     # ---- 总演示 ----
     def 总演示(self):
         print("=" * 60)
-        print("混元一体化总演示 v1.1 —— 七族指令 + FPGA + 流水线CPU + Cache + IP")
+        print("混元一体化总演示 v1.3 —— 七族指令 + FPGA + OoO CPU + Cache + IP")
         print("=" * 60)
         print("\n【1. 运算主权】Σ(1..100) =", self.运算(100))
         print("\n【2. 判断主权】净账/信任/割点/回归/死胡同:")
@@ -205,16 +206,19 @@ class 混元:
         print("    下一步:", fpga["下一步"])
         print("\n【7. CPU 主权】流水线 RISC v1.1 + Cache + 外设 IP")
         cpu_files = ["cpu/hunyuan_cpu.v", "cpu/hunyuan_cpu_pipelined.v",
+                     "cpu/hunyuan_cpu_v13.v",
                      "cpu/cache.v", "cpu/periph.v", "cpu/periph_x.v",
                      "cpu/hunyuan_soc_v11.v",
-                     "cpu/tb_pipeline.v", "tapeout/caravel_wrapper.v"]
+                     "cpu/tb_pipeline.v", "cpu/tb_v13.v",
+                     "tapeout/caravel_wrapper.v"]
         for fn in cpu_files:
             print("   ", fn)
-        print("   5级流水: IF/ID/EX/MW/WB + 前递 + branch flush")
-        print("   I/D-Cache: 64行 × 4字, write-through/allocate")
-        print("   IP: Timer(2ch) + PWM(3ch) + I2C + DMA + SPI + ETH + USB")
+        print("   v1.3 新特性:")
+        print("   2-bit 动态分支预测 + BTB (64-entry BHT, 32-entry BTB)")
+        print("   8-entry ROB 乱序执行 + 寄存器重命名 (16→32 物理)")
+        print("   5级流水 + 前递 + load-under-miss D-Cache")
         print("\n" + "=" * 60)
-        print("混元 v1.1 完成。流水线 CPU + Cache + 外设 IP，全部本地。")
+        print("混元 v1.3 完成。2-bit 分支预测 + ROB OoO + Cache + 外设 IP，全部本地。")
 
 
 # =====================================================================
