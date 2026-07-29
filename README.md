@@ -1,8 +1,8 @@
-# 混元 v1.0
+# 混元 v1.1
 
 **一体混元多用 —— 一个平台，所有系统。**
 
-## 六模块 + 流片
+## 七模块
 
 | 主权 | 模块 | 能力 |
 |------|------|------|
@@ -12,7 +12,7 @@
 | 硬件 | `hunyuan_gear_hw.py` | 齿轮核仿真 + Verilog 导出 + 综合脚本 |
 | 机体 | `hunyuan_vm05.py` | 感知/调用/堆/通道/设备/网络/时钟 |
 | FPGA | `fpga/` | 导出 → 综合 → 烧录到 Tang Nano 9K |
-| CPU | `cpu/` `tapeout/` | RISC RTL + SoC + Caravel 封装 + 流片指引 |
+| CPU | `cpu/` | **流水线 RISC v1.1** + Cache + 外设 IP + Caravel |
 
 ## 七族指令（v0.5 新增，opcode 36-60）
 
@@ -77,20 +77,26 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 - [x] v0.5 — 七族指令扩展（感知/调用/堆/通道/设备/网络/时钟）
 - [x] v0.6 — FPGA 综合流程（Verilog 导出 + 综合脚本 + 引脚约束 → Tang Nano 9K）
 - [x] v1.0 — RISC CPU RTL（Verilog）+ Caravel 封装 + Efabless 流片路径
+- [x] v1.1 — 流水线 CPU (5级) + Cache (I/D) + 外设 IP (Timer/PWM/I2C/DMA)
 
-## CPU v1.0 (新增)
+## CPU v1.1 (流水线 + Cache + 外设)
 
 | 文件 | 作用 |
 |------|------|
-| `cpu/hunyuan_cpu.v` | 多周期 RISC 处理器 (16 regs, 32-bit, Wishbone) |
-| `cpu/hunyuan_soc.v` | SoC 顶层 (CPU + ROM + SRAM + UART) |
-| `cpu/tb_hunyuan_cpu.v` | 测试平台 (Sigma(1..100)=5050) |
-| `tapeout/caravel_wrapper.v` | Caravel 用户项目封装 (GPIO / LA / IRQ) |
-| `tapeout/README.md` / `constraints.sdc` | 流片指引 + 综合约束 |
+| `cpu/hunyuan_cpu.v` | 多周期 RISC (v1.0, 基础版) |
+| `cpu/hunyuan_cpu_pipelined.v` | **5级流水 RISC** (IF/ID/EX/MEM/WB) |
+| `cpu/cache.v` | I-Cache + D-Cache (64行×4字, write-through) |
+| `cpu/periph.v` | 外设 IP: Timer(2ch) + PWM(3ch) + I2C + DMA |
+| `cpu/hunyuan_soc_v11.v` | SoC 顶层 (CPU + Cache + 外设) |
+| `cpu/tb_pipeline.v` | 流水线测试平台 |
 
-**综合策略**: SkyWater 130nm, 15K gates, ~1.2mm^2, 100MHz
-**验证**: `iverilog cpu/hunyuan_cpu.v cpu/tb_hunyuan_cpu.v -o sim && vvp sim`
-**流片路径**: Efabless Caravel + OpenMPW Shuttle (零费用 MPW)
+**架构:**
+- 5级流水, 前递(forwarding), load-use hazard stall
+- I/D 分离 Cache (Harvard), write-through + write-allocate
+- 外设内存映射: Timer@0x3000_0000, PWM@0x3000_0010, I2C@0x3000_0020, DMA@0x3000_0030
+
+**综合目标:** SkyWater 130nm, ~35K gates (含 Cache + IP), ~1.5mm²
+**验证:** `iverilog cpu/hunyuan_cpu_pipelined.v cpu/tb_pipeline.v -o sim && vvp sim`
 
 ---
 
