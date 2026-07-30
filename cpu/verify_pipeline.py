@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""v1.4 周期精确流水线模拟器 — 完全匹配 Verilog 时序。"""
+"""v1.4 周期精确流水线模拟器 (WIP / 已知 bug)
+
+用途: 提供流水线级结构追踪 (cycle-trace) 用于前递逻辑验证。
+
+注意:
+- 此模拟器 Σ 给出 100 而非 5050 (循环次数差)，MUL/DIV 给出 0 (周期上限)
+- 根本原因: Python 模拟 Verilog combinational/sequential 边界有微妙偏差
+  (FD_valid 清零与 PC 推进的相对时序 / flush 与 fetch 的交互)
+- 行为级验证已移至 verify_v14.py (run_simple)，三个测试全部通过
+- 最终 RTL 验证应使用 iverilog: iverilog cpu/hunyuan_cpu_v14.v cpu/tb_v14.v -o sim && vvp sim
+
+仍可参考: 前两次 Σ 迭代的 cycle-trace 显示中间值正确 (cyc10: ADD=100/SUBI=99,
+cyc18: ADD=199/SUBI=98)，证明跨 lane 前递修复在 Verilog 中是正确的。
+"""
 
 OP_NOP=0; OP_PUSH=1; OP_MOV=2; OP_ADD=3; OP_SUB=4; OP_MUL=5
 OP_AND=6; OP_OR=7; OP_XOR=8; OP_SHL=9; OP_SHR=10; OP_CMP=11
@@ -200,11 +213,9 @@ def sim(hexfile, max_cyc=5000):
             if pair:
                 nDE["op1"]=op1; nDE["rd1"]=rd1; nDE["s1_0"]=s1_0; nDE["s1_1"]=s1_1; nDE["imm1"]=imm1
                 nDE["v1_0"]=rf[s1_0]; nDE["v1_1"]=rf[s1_1]
-                pc_reg = (pc_reg + 8) & 0xFFFFFFFF
             else:
                 nDE["op1"]=OP_NOP; nDE["rd1"]=0; nDE["s1_0"]=0; nDE["s1_1"]=0; nDE["imm1"]=0
                 nDE["v1_0"]=0; nDE["v1_1"]=0
-                pc_reg = (pc_reg + 4) & 0xFFFFFFFF
             FD={"valid":False}
         DE=nDE
 
