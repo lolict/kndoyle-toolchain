@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""v1.4 周期精确流水线模拟器 (WIP / 已知 bug)
+"""v1.4 周期精确流水线模拟器
 
 用途: 提供流水线级结构追踪 (cycle-trace) 用于前递逻辑验证。
-
-注意:
-- 此模拟器 Σ 给出 100 而非 5050 (循环次数差)，MUL/DIV 给出 0 (周期上限)
-- 根本原因: Python 模拟 Verilog combinational/sequential 边界有微妙偏差
-  (FD_valid 清零与 PC 推进的相对时序 / flush 与 fetch 的交互)
-- 行为级验证已移至 verify_v14.py (run_simple)，三个测试全部通过
-- 最终 RTL 验证应使用 iverilog: iverilog cpu/hunyuan_cpu_v14.v cpu/tb_v14.v -o sim && vvp sim
-
-仍可参考: 前两次 Σ 迭代的 cycle-trace 显示中间值正确 (cyc10: ADD=100/SUBI=99,
-cyc18: ADD=199/SUBI=98)，证明跨 lane 前递修复在 Verilog 中是正确的。
+与 hunyuan_cpu_v14.v 语义对齐:
+- DE/EM/MW 流水寄存器; DE 保持期间冻结 EM/MW (防同一指令重复推进)
+- JZ/JNZ 的 ALU 输出 = 测试值 a (f0_0), 不是 imm
+- STORE 的 rs2 数据走前递网络 (f0_1)
+- 双发射丢弃 i1: 配对失败的单发射指令后补 NOP 填充, 标签地址基于实际发射地址
+- 自跳 JMP (目标=自身地址, 8 字节对齐) 作为 halt, 检测到即停机返回实际周期
+- 前递优先级: MW → EM (EM 更新), LOAD 结果仅 MW 阶段可用 (无 LOAD stall)
+- 四个测试全部通过: Σ(1..100)=5050, 25*17=425, 1000/13=76, logic(dmem[0]=100,dmem[4]=105)
 """
 
+import sys
 OP_NOP=0; OP_PUSH=1; OP_MOV=2; OP_ADD=3; OP_SUB=4; OP_MUL=5
 OP_AND=6; OP_OR=7; OP_XOR=8; OP_SHL=9; OP_SHR=10; OP_CMP=11
 OP_DIV=12; OP_STORE=16; OP_LOAD=17; OP_ADDI=19; OP_SUBI=20
@@ -39,7 +38,8 @@ def alu(op,a,b,imm):
     if op in (OP_LOAD,OP_STORE): return (a+imm)&0xFFFFFFFF
     if op==OP_PUSH: return imm&0xFFFFFFFF
     if op==OP_MOV: return a
-    if op in (OP_JMP,OP_JZ,OP_JNZ,OP_JAL,OP_CALL): return imm&0xFFFFFFFF
+    if op in (OP_JMP,OP_JAL,OP_CALL): return imm&0xFFFFFFFF
+    if op in (OP_JZ,OP_JNZ): return a
     if op==OP_RET: return a
     if op==OP_SENSE: return 0
     return 0
@@ -75,6 +75,7 @@ def sim(hexfile, max_cyc=5000):
             v=int(line,16); flat.append(v&0xFFFFFFFF); flat.append((v>>32)&0xFFFFFFFF)
     rf=[0]*32; dmem=[0]*4096
     pc_reg=0; fetch_idle=True
+    fd_inflight=False; fd_adr=0
     FD={"valid":False,"i0":0,"i1":0,"pc":0}
     DE={"valid":False}
     EM={"valid":False}
@@ -85,19 +86,6 @@ def sim(hexfile, max_cyc=5000):
         md_done=False
         # COMBINATIONAL: forward
         f0_0=DE.get("v0_0",0); f0_1=DE.get("v0_1",0); f1_0=DE.get("v1_0",0); f1_1=DE.get("v1_1",0)
-        if EM.get("valid"):
-            if EM["rd0"]!=0 and EM["op0"] not in (OP_STORE,OP_NOP):
-                v=EM["alu0"]
-                if EM["rd0"]==DE.get("s0_0",0): f0_0=v
-                if EM["rd0"]==DE.get("s0_1",0): f0_1=v
-                if EM["rd0"]==DE.get("s1_0",0): f1_0=v
-                if EM["rd0"]==DE.get("s1_1",0): f1_1=v
-            if EM.get("rd1",0)!=0 and EM.get("op1",0) not in (OP_STORE,OP_NOP) and EM.get("op1") is not None:
-                v=EM["alu1"]
-                if EM["rd1"]==DE.get("s0_0",0): f0_0=v
-                if EM["rd1"]==DE.get("s0_1",0): f0_1=v
-                if EM["rd1"]==DE.get("s1_0",0): f1_0=v
-                if EM["rd1"]==DE.get("s1_1",0): f1_1=v
         if MW.get("valid"):
             if MW.get("wen0") and MW["rd0"]!=0:
                 v = MW["mem"] if MW.get("isload") else MW["alu0"]
@@ -111,13 +99,26 @@ def sim(hexfile, max_cyc=5000):
                 if MW["rd1"]==DE.get("s0_1",0): f0_1=v
                 if MW["rd1"]==DE.get("s1_0",0): f1_0=v
                 if MW["rd1"]==DE.get("s1_1",0): f1_1=v
+        if EM.get("valid"):
+            if EM["rd0"]!=0 and EM["op0"] not in (OP_STORE,OP_NOP,OP_LOAD):
+                v=EM["alu0"]
+                if EM["rd0"]==DE.get("s0_0",0): f0_0=v
+                if EM["rd0"]==DE.get("s0_1",0): f0_1=v
+                if EM["rd0"]==DE.get("s1_0",0): f1_0=v
+                if EM["rd0"]==DE.get("s1_1",0): f1_1=v
+            if EM.get("rd1",0)!=0 and EM.get("op1",0) not in (OP_STORE,OP_NOP,OP_LOAD) and EM.get("op1") is not None:
+                v=EM["alu1"]
+                if EM["rd1"]==DE.get("s0_0",0): f0_0=v
+                if EM["rd1"]==DE.get("s0_1",0): f0_1=v
+                if EM["rd1"]==DE.get("s1_0",0): f1_0=v
+                if EM["rd1"]==DE.get("s1_1",0): f1_1=v
 
         # EX outputs
         alu0_out = alu(DE.get("op0",OP_NOP),f0_0,f0_1,DE.get("imm0",0)) if DE.get("valid") else 0
         alu1_out = alu(DE.get("op1",OP_NOP),f1_0,f1_1,DE.get("imm1",0)) if DE.get("valid") else 0
         alu0_zero = (alu0_out==0)
 
-        br_taken=False; br_target=0
+        br_taken=False; br_target=0; halted=False
         if DE.get("valid"):
             op0=DE["op0"]
             if op0==OP_JMP: br_target=DE["imm0"]; br_taken=True
@@ -126,6 +127,8 @@ def sim(hexfile, max_cyc=5000):
             elif op0==OP_JAL: br_target=DE["imm0"]; br_taken=True
             elif op0==OP_CALL: br_target=DE["imm0"]; br_taken=True
             elif op0==OP_RET: br_target=f0_0; br_taken=True
+            if br_taken and op0==OP_JMP and br_target==DE.get("pc",0):
+                halted=True   # 自跳 JMP = halt 惯用法
 
         # MUL/DIV
         md_just_started=False
@@ -150,6 +153,9 @@ def sim(hexfile, max_cyc=5000):
                        (0 if (DE.get("valid") and DE.get("dual") and DE.get("op1",0) in (OP_MUL,OP_DIV)) else alu1_out))
         lane1_wen = (DE.get("valid") and DE.get("dual") and DE.get("op1",0) not in (OP_STORE,OP_NOP,OP_EMIT) and DE.get("rd1",0)!=0) or (md_done and md_is_lane1)
 
+        # DE 保持期间(等待取指/MUL执行)冻结 EM/MW, 防止同一指令被重复推进执行
+        de_kept = md_active or (not br_taken and not FD.get("valid", False) and not md_done)
+
         # SEQUENTIAL: WB
         if MW.get("valid"):
             if MW.get("wen0") and MW["rd0"]!=0:
@@ -165,7 +171,9 @@ def sim(hexfile, max_cyc=5000):
 
         # SEQUENTIAL: MW <- EM
         nMW={"valid":False}
-        if EM.get("valid"):
+        if de_kept:
+            nMW = MW
+        elif EM.get("valid"):
             wen1 = (EM.get("dual") and EM.get("op1",0) not in (OP_STORE,OP_NOP,OP_EMIT) and EM.get("rd1",0)!=0) or (md_done and EM.get("dual"))
             wen0 = (EM["op0"] not in (OP_STORE,OP_NOP,OP_EMIT) and EM.get("rd0",0)!=0)
             if EM["op0"]==OP_STORE:
@@ -173,8 +181,7 @@ def sim(hexfile, max_cyc=5000):
                 nMW={"valid":True,"op0":OP_NOP,"op1":EM.get("op1",0),
                      "alu0":EM["alu0"],"alu1":EM["alu1"],"rd0":0,"rd1":EM.get("rd1",0),
                      "wen0":0,"wen1":wen1,"isload":False,"mem":0,"pc":EM.get("pc",0)}
-            elif EM["op0"]==OP_LOAD:
-                nMW={"valid":True,"op0":EM["op0"],"op1":EM.get("op1",0),
+            elif EM["op0"]==OP_LOAD:                nMW={"valid":True,"op0":EM["op0"],"op1":EM.get("op1",0),
                      "alu0":EM["alu0"],"alu1":EM["alu1"],"rd0":EM["rd0"],"rd1":EM.get("rd1",0),
                      "wen0":1,"wen1":wen1,"isload":True,"mem":dmem[EM["alu0"]%4096],"pc":EM.get("pc",0)}
             else:
@@ -185,24 +192,29 @@ def sim(hexfile, max_cyc=5000):
 
         # SEQUENTIAL: EM <- DE (with md_res applied)
         nEM={"valid":False}
-        if DE.get("valid"):
+        if de_kept:
+            nEM = EM
+        elif DE.get("valid"):
             rd0 = 1 if DE["op0"] in (OP_JAL,OP_CALL) else DE.get("rd0",0)
             rd1 = 1 if DE.get("op1",0) in (OP_JAL,OP_CALL) else DE.get("rd1",0)
+            wen0 = int(DE["op0"] not in (OP_STORE,OP_NOP,OP_EMIT) and rd0!=0)
+            wen1 = int(DE.get("dual") and DE.get("op1",0) not in (OP_STORE,OP_NOP,OP_EMIT) and rd1!=0)
             nEM={"valid":True,"op0":DE["op0"],"op1":DE.get("op1",0),
                  "alu0":lane0_final,"alu1":lane1_final,"rd0":rd0,"rd1":rd1,
-                 "rs2":DE.get("v0_1",0),"dual":DE.get("dual",False),"pc":DE.get("pc",0)}
+                 "rs2":f0_1,"dual":DE.get("dual",False),"pc":DE.get("pc",0),
+                 "wen0":wen0,"wen1":wen1}
         EM=nEM
 
-        # SEQUENTIAL: DE <- FD (or flush)
-        fd_stall = md_active
-        FD_flush = br_taken
+        # SEQUENTIAL: DE <- FD (保持/清空/新指令)
+        # DE 是流水寄存器: 无新指令时保持, MUL/DIV 期间保持, flush 时清空
         nDE={"valid":False}
         if br_taken:
             pc_reg = br_target & 0xFFFFFFFF
             fetch_idle = True
+            fd_inflight = False
             FD={"valid":False}
-        elif fd_stall:
-            pass
+        elif md_active:
+            nDE = DE        # MUL/DIV 执行期间保持 DE
         elif FD.get("valid"):
             op0,rd0,s0_0,s0_1,imm0=dec(FD["i0"])
             op1,rd1,s1_0,s1_1,imm1=dec(FD["i1"])
@@ -217,38 +229,46 @@ def sim(hexfile, max_cyc=5000):
                 nDE["op1"]=OP_NOP; nDE["rd1"]=0; nDE["s1_0"]=0; nDE["s1_1"]=0; nDE["imm1"]=0
                 nDE["v1_0"]=0; nDE["v1_1"]=0
             FD={"valid":False}
+        elif md_done:
+            nDE={"valid":False}     # MUL/DIV 结果已锁存进 EM, 清空 DE 防重复锁存覆盖
+        else:
+            nDE = DE                # 无新指令: 保持 DE
         DE=nDE
 
-        # SEQUENTIAL: FD <- IF ( Wishbone: start fetch 1cyc, ack next cyc => 2 cyc per fetch )
-        # Model: when fetch_idle, set cyc/stb, then 1 cyc later capture.
-        # Using "issuing" + "issued_after_ack" approach:
+        # SEQUENTIAL: FD <- IF (Wishbone: 发出取指 1 周期, ack 下周期到达 => 每 2 周期取一次)
         if not md_active and not br_taken:
-            if getattr(sim, "_issending", False):
-                # This cycle: ack arrives, capture data
-                adr = getattr(sim, "_fetch_adr", 0)
+            if fd_inflight:
+                adr = fd_adr
                 i0 = flat[(adr//4)%len(flat)] if flat else 0
                 i1 = flat[((adr//4)+1)%len(flat)] if flat else 0
                 FD={"valid":True,"i0":i0,"i1":i1,"pc":adr}
                 fetch_idle = True
-                sim._issending = False
-                pc_reg = (pc_reg + 8) & 0xFFFFFFFF
+                fd_inflight = False
+                pc_reg = (adr + 8) & 0xFFFFFFFF
             elif fetch_idle:
-                # Start new fetch at pc_reg, advance pc
-                sim._fetch_adr = pc_reg
+                fd_adr = pc_reg
                 fetch_idle = False
-                sim._issending = True
+                fd_inflight = True
 
-    return dmem[0] if dmem else 0, max_cyc
+        # halt: 自跳 JMP 即停机, 提前返回实际周期
+        if halted:
+            return dmem, cyc
 
-sim._issending = False
-sim._fetch_adr = 0
+    return dmem, max_cyc
 
 if __name__ == "__main__":
     for fn, exp, desc in [
         ("prog_sigma_100.hex", 5050, "Σ(1..100)"),
         ("prog_mul.hex", 425, "25*17"),
         ("prog_div.hex", 76, "1000/13"),
+        ("prog_logic.hex", (100, 105), "logic ops (dmem[0]=100,dmem[4]=105)"),
     ]:
-        result, cyc = sim(fn)
-        status = "PASS" if result == exp else "FAIL"
-        print(f"[{status}] {desc}: dmem[0]={result} expected={exp} cycles={cyc}")
+        dmem, cyc = sim(fn)
+        if isinstance(exp, tuple):
+            ok = dmem[0] == exp[0] and dmem[4] == exp[1]
+            res = f"dmem[0]={dmem[0]} dmem[4]={dmem[4]}"
+        else:
+            ok = dmem[0] == exp
+            res = f"dmem[0]={dmem[0]}"
+        status = "PASS" if ok else "FAIL"
+        print(f"[{status}] {desc}: {res} expected={exp} cycles={cyc}")

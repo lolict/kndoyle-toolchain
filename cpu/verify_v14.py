@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v1.4 周期精确流水线模拟器 — 建模 5 级流水 + 双发射 + 完整前递。"""
+"""v1.4 顺序执行行为级基线 (正确性参照) — 含完整指令集解码/ALU/内存模型。"""
 
 # Op 码 (与 Verilog localparam 一致)
 OP_NOP=0; OP_PUSH=1; OP_MOV=2; OP_ADD=3; OP_SUB=4; OP_MUL=5
@@ -56,7 +56,8 @@ def alu_eval(op, a, b, imm, sense=0):
     if op in (OP_LOAD, OP_STORE): return (a + imm) & 0xFFFFFFFF
     if op == OP_PUSH: return imm & 0xFFFFFFFF
     if op == OP_MOV: return a
-    if op in (OP_JMP, OP_JZ, OP_JNZ, OP_JAL, OP_CALL): return imm & 0xFFFFFFFF
+    if op in (OP_JMP, OP_JAL, OP_CALL): return imm & 0xFFFFFFFF
+    if op in (OP_JZ, OP_JNZ): return a
     if op == OP_RET: return a
     if op == OP_SENSE: return sense & 0xFFFFFFFF
     return 0
@@ -316,7 +317,7 @@ def run_simple(hexfile):
         cyc += 1
         idx = pc // 4
         if idx < 0 or idx >= len(flat):
-            return dmem.get(0, 0), cyc, flat
+            return dmem, cyc, flat
         instr = flat[idx]
         op, rd, rs1, rs2, imm = dec(instr)
 
@@ -340,6 +341,8 @@ def run_simple(hexfile):
         elif op == OP_OR:  rf[rd] = rf[rs1] | rf[rs2]; pc += 4
         elif op == OP_XOR: rf[rd] = rf[rs1] ^ rf[rs2]; pc += 4
         elif op == OP_CMP: rf[rd] = (rf[rs1] - rf[rs2]) & 0xFFFFFFFF; pc += 4
+        elif op == OP_SHL: rf[rd] = (rf[rs1] << (rf[rs2] & 0x1F)) & 0xFFFFFFFF; pc += 4
+        elif op == OP_SHR: rf[rd] = rf[rs1] >> (rf[rs2] & 0x1F); pc += 4
         elif op == OP_MOV: rf[rd] = rf[rs1]; pc += 4
         elif op == OP_LOAD:
             rf[rd] = dmem.get((rf[rs1] + imm) & 0xFFFFFFFF, 0); pc += 4
@@ -365,10 +368,10 @@ def run_simple(hexfile):
             pc += 4
 
         if cyc > 10 and op == OP_JMP and pc == prev_pc:
-            return dmem.get(0, 0), cyc, flat
+            return dmem, cyc, flat
         prev_pc = pc
 
-    return dmem.get(0, 0), cyc, flat
+    return dmem, cyc, flat
 
 
 def disasm(hexfile):
@@ -408,13 +411,20 @@ if __name__ == "__main__":
         ("prog_sigma_100.hex", 5050, "Σ(1..100)"),
         ("prog_mul.hex", 425, "25*17"),
         ("prog_div.hex", 76, "1000/13"),
+        ("prog_logic.hex", (100, 105), "logic ops (dmem[0]=100,dmem[4]=105)"),
     ]:
-        result, cyc, _ = run_simple(fn)
-        status = "PASS" if result == expected else "FAIL"
-        print(f"  [{status}] {desc}: dmem[0]={result} expected={expected} (顺序执行)")
+        dmem, cyc, _ = run_simple(fn)
+        if isinstance(expected, tuple):
+            ok = dmem.get(0, 0) == expected[0] and dmem.get(4, 0) == expected[1]
+            res = f"dmem[0]={dmem.get(0,0)} dmem[4]={dmem.get(4,0)}"
+        else:
+            ok = dmem.get(0, 0) == expected
+            res = f"dmem[0]={dmem.get(0,0)}"
+        status = "PASS" if ok else "FAIL"
+        print(f"  [{status}] {desc}: {res} expected={expected} (顺序执行)")
 
     print()
     print("=== v1.4 反汇编 ===")
-    for fn in ["prog_sigma_100.hex", "prog_mul.hex", "prog_div.hex"]:
+    for fn in ["prog_sigma_100.hex", "prog_mul.hex", "prog_div.hex", "prog_logic.hex"]:
         disasm(fn)
         print()

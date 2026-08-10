@@ -71,19 +71,17 @@ def can_pair(op0, rd0, s0_0, s0_1, op1, rd1, s1_0, s1_1):
 
 
 def assemble(raw_lines):
-    # 第一遍: 计算 PC (每条 32-bit = 4 字节)
-    addr = {}
+    # 第一遍: 收集指令与标签 (标签记录指令索引)
+    labels = {}
     stripped = []
-    pos = 0
     for line in raw_lines:
         line = line.strip()
         if '#' in line: line = line[:line.index('#')].strip()
         if not line: continue
         if line.startswith('LABEL '):
-            addr[line.split()[1]] = pos
+            labels[line.split()[1]] = len(stripped)
             continue
         stripped.append(line)
-        pos += 4
 
     # 配对
     pairs = []
@@ -93,18 +91,35 @@ def assemble(raw_lines):
             op0, rd0, s0_0, s0_1, _ = decode_regs(stripped[i])
             op1, rd1, s1_0, s1_1, _ = decode_regs(stripped[i + 1])
             if can_pair(op0, rd0, s0_0, s0_1, op1, rd1, s1_0, s1_1):
-                pairs.append((stripped[i], stripped[i + 1]))
+                pairs.append((i, i + 1))
                 i += 2
                 continue
-        pairs.append((stripped[i], None))
+        pairs.append((i, None))
         i += 1
+
+    # 每条指令在最终二进制中的实际发射地址
+    # (单发射指令后插入 NOP 填充, 实际地址与源码顺序地址可能不同)
+    ins_addr = {}
+    a = 0
+    for i0, i1 in pairs:
+        ins_addr[i0] = a
+        a += 4
+        if i1 is not None:
+            ins_addr[i1] = a
+            a += 4
+        else:
+            a += 4  # NOP 填充占一个槽位
 
     # 编码: 每条 emit 为一条 32-bit, 用 0 (NOP) 填充奇数 length
     code = []
-    for l0, l1 in pairs:
-        for ln in (l0, l1 if l1 else 'NOP'):
+    for i0, i1 in pairs:
+        for idx in (i0, i1):
+            ln = stripped[idx] if idx is not None else 'NOP'
             op, rd, rs1, rs2, itok = decode_regs(ln)
-            imm = addr[itok] if itok in addr else (int(itok) if not itok.startswith('r') else 0)
+            if itok and itok in labels:
+                imm = ins_addr[labels[itok]]
+            else:
+                imm = int(itok) if (itok and not itok.startswith('r')) else 0
             enc = ((OP[op] & 0x3F) << 26) | ((rd & 0xF) << 22) | ((rs1 & 0xF) << 18) | ((rs2 & 0xF) << 14) | (imm & 0x3FFF)
             code.append(enc)
 
@@ -121,6 +136,8 @@ def write_hex(name, code):
 
 
 # ─── Σ(1..100) = 5050 ───
+# halt 用 8 字节对齐的自跳 JMP (跳到自身): v1.4 双发射丢弃 i1,
+# 非对齐跳转目标会把回边的 JMP 放在 i1 位置而被丢弃, halt 循环失效
 sigma_src = """
 PUSH r1, 100
 PUSH r2, 0
@@ -129,10 +146,8 @@ ADD r2, r2, r1
 SUBI r1, r1, 1
 JNZ r1, loop
 STORE r2, r0[0]
-JMP end
-LABEL end
-NOP
-NOP
+LABEL halt
+JMP halt
 """
 
 # ─── MUL 25 * 17 = 425 ───
@@ -141,10 +156,8 @@ PUSH r1, 25
 PUSH r2, 17
 MUL r3, r1, r2
 STORE r3, r0[0]
-JMP d_end
-LABEL d_end
-NOP
-NOP
+LABEL halt
+JMP halt
 """
 
 # ─── DIV 1000 / 13 = 76 ───
@@ -153,15 +166,43 @@ PUSH r1, 1000
 PUSH r2, 13
 DIV r3, r1, r2
 STORE r3, r0[0]
-JMP d_end
-LABEL d_end
+LABEL halt
+JMP halt
+"""
+
+# ─── 逻辑/移位/内存综合测试 ───
+# r3=80 r4=10 r5=20 r6=17 r7=0 r8=30 r9=30 r10=-10
+# JZ(not taken) -> r11=5; r12=100; dmem[0]=100; r13=105; dmem[4]=105
+logic_src = """
+PUSH r1, 10
+PUSH r2, 3
+SHL r3, r1, r2
+SHR r4, r3, r2
+MOV r5, r4
+ADD r5, r5, r1
+SUB r6, r5, r2
+AND r7, r5, r1
+OR r8, r5, r1
+XOR r9, r5, r1
+CMP r10, r7, r1
+JZ r10, taken
+PUSH r11, 5
+LABEL taken
+ADDI r12, r8, 70
+STORE r12, r0[0]
+LOAD r13, r0[0]
+SHL r14, r1, r2
 NOP
-NOP
+ADD r13, r13, r11
+STORE r13, r0[4]
+LABEL halt
+JMP halt
 """
 
 if __name__ == "__main__":
     for name, src in [("prog_sigma_100.hex", sigma_src),
                        ("prog_mul.hex", mul_src),
-                       ("prog_div.hex", div_src)]:
+                       ("prog_div.hex", div_src),
+                       ("prog_logic.hex", logic_src)]:
         code = assemble(src.strip().split('\n'))
         write_hex(name, code)

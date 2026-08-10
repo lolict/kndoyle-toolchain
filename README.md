@@ -100,6 +100,8 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 | `cpu/hunyuan_cpu_v14.v` | **v1.4**: 超标量双发射 + 硬件乘除法 |
 | `cpu/tb_v14.v` | v1.4 测试平台 (Σ5050 + MUL/DIV) |
 | `cpu/gen_progs_v14.py` | 配对感知汇编器 (自动配对 + NOP 填充) |
+| `cpu/verify_v14.py` | v1.4 顺序执行验证 (4 测试全 PASS) |
+| `cpu/verify_pipeline.py` | v1.4 周期精确流水线模拟器 (4 测试全 PASS) |
 
 **架构 (v1.4 — 超标量双发射):**
 
@@ -112,8 +114,9 @@ cd fpga && bash synthesize.sh      # 本地有 yosys + nextpnr-ice40 时执行
 | 配对规则 | ALU+ALU, ALU+MEM, ALU+MUL 允许; 禁 双MEM/双分支/双MUL/RAW/WAW |
 | MUL/DIV | Booth 乘法 4 周期, 非恢复除法 8 周期; Lane-1 优先 |
 | 分支预测 | 2-bit 饱和计数器 + BTB (64 BHT, 32 BTB) |
+| halt 语义 | 双发射丢弃 i1 ⇒ 回边 JMP 必须落在 8 字节对齐的 i0 位置, 程序用自跳 JMP (目标=自身) 停机 |
 
-**测试:** `Σ(1..100)=5050` · `25×17=425` · `1000/13=76`
+**测试:** `Σ(1..100)=5050` · `25×17=425` · `1000/13=76` · `logic: dmem[0]=100 dmem[4]=105`
 
 **综合目标:** SkyWater 130nm, ~55K gates (含 Cache + IP + 双发射 + MUL/DIV)
 **验证 (RTL):** `iverilog cpu/hunyuan_cpu_v14.v cpu/tb_v14.v -o sim && vvp sim`
