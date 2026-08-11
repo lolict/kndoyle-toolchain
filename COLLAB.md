@@ -35,6 +35,7 @@ for r in origin toolchain-gitee toolchain-gitcode toolchain-github; do git push 
 | `cpu/` | CPU 验证链 (v1.4) | `verify_pipeline.py`, `verify_v14.py` |
 | `phoneconv/` | 手机文档转换器 | `conv.py`, `gttx.py`, `install.sh`, `fetch_all.js` |
 | `brain/` | 外置大脑知识库 | `build.py` 建索引, `ask.py` 提问 |
+| `fus/` | 智能共同体协议融合网关 | `fusion.py`（统一收口 HTTP/TCP/UDP/FTP/gttx） |
 
 ## 新增记忆的规范流程
 

@@ -131,6 +131,17 @@ def check_dup(name):
             except OSError:
                 continue
             hashes.setdefault(h, []).append(p)
+    # 补丁源与已应用补丁属同一文件的两处存放，豁免
+    patch_srcs = set()
+    patch_dir = os.path.join(ROOT, "patches")
+    if os.path.isdir(patch_dir):
+        for root, _, files in os.walk(patch_dir):
+            for fn in files:
+                p = os.path.join(root, fn)
+                try:
+                    patch_srcs.add(file_sha256(p))
+                except OSError:
+                    pass
     dup_found = False
     for root, _, files in os.walk(tree):
         for fn in files:
@@ -140,7 +151,7 @@ def check_dup(name):
             except OSError:
                 continue
             for other in hashes.get(h, []):
-                if other != p and not other.startswith(VENDOR):
+                if other != p and not other.startswith(VENDOR) and h not in patch_srcs:
                     print(f"  [重复] {os.path.relpath(p, ROOT)} == {os.path.relpath(other, ROOT)} (sha256 相同)")
                     dup_found = True
     if not dup_found:
