@@ -61,6 +61,34 @@ bash pull.sh Unicore src examples                   # 拉指令集源码与示�
 
 **拉取原则**：只拉自己缺的重要功能；不缺的不拉；拉进来的是独立可用模块。
 
+**支撑完整性与重复检测（自动）**：每次 `pull.sh` 拉取后自动运行 `checkdeps.py`：
+
+```bash
+python3 checkdeps.py           # 检查全部 vendor
+python3 checkdeps.py 仓库名     # 检查指定 vendor
+```
+
+检查两项：
+1. **支撑完整性**：代码里 `mod`/`import`/`include`/`require` 声明的每个模块文件
+   是否都已拉取（防止"局部拉取漏掉支撑文件，代码失去用意"）
+2. **重复状态**：sha256 全库比对，vendor 代码是否与主仓库其他文件内容重复
+   （防止"拉进来又重复"）
+
+两项均 PASS 才视为可打包。**失败即停止**：缺支撑就补齐支撑文件，
+有重复就删除新拉的重复副本。
+
+**兼容补丁（patches/）**：若上游代码自身有 bug（如 relational-algebra 的
+`__init__.py` 引用了模块里不存在的 `selection`/`projection`/`FusionState`
+等符号），用独立补丁修复，不改动源仓库风格：
+
+```bash
+bash apply_patch.sh relational-algebra   # 应用兼容补丁并验证可运行
+```
+
+- 补丁放 `patches/`，应用后写进 vendor（记录于 SOURCE.md）
+- vendor 保持来源纯净、可再拉取；重拉后需重新应用补丁
+- 补丁验证到"能导入 + 能运算"，而非仅静态检查
+
 ## 未来核心合并路径（待用户授权后执行）
 
 1. 将核心创作仓库按模块并入主仓库子目录（如 `core/os/`、`core/relalg/`、`core/uniisa/`）
