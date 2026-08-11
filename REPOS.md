@@ -44,9 +44,12 @@
    是核心创作，改动前必须读 ARCHITECTURE/PROTOCOL/SPEC，且确认作者意图。
 3. **工具链只在固定两处**：phoneconv / brain / 协作文档只进
    `kenandaoer`（开发源）与 `kndoyle-toolchain`（镜像）。
-4. **未知仓库不建不推**：ddck、mycode、residual-aid、kndoyle-gtxt
+4. **按需索取（vendor）**：核心仓库不整仓并入。缺哪个重要功能，
+   用 `bash pull.sh <仓库> <路径>` 只拉那个路径到 `vendor/<来源>/`，
+   保持独立目录 + SOURCE.md 来源标注，可辨、可认、可打包。
+5. **未知仓库不建不推**：ddck、mycode、residual-aid、kndoyle-gtxt
    目的未确认前，不往里面塞代码。
-5. **每次推送自检**：这次代码属于哪个层？该层的仓库是哪个？读过了吗？
+6. **每次推送自检**：这次代码属于哪个层？该层的仓库是哪个？读过了吗？
 
 ## 四、历史推送冲击审计
 

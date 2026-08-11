@@ -24,6 +24,7 @@ bash package.sh        # 一键打包 → dist/kndoyle-<版本>.tar.gz
 - 全部 hunyuan 模块（hunyuan.py + 八模块 + CPU/FPGA/tapeout）
 - `phoneconv/`（conv.py / gttx.py / install.sh / fetch_all.js）
 - `brain/`（build.py / ask.py / docs / kb.json）
+- `vendor/`（按需索取的其他仓库功能，含 SOURCE.md 来源标注）
 - `COLLAB.md` `REPOS.md` `PACKAGING.md` `kndoyle-symbols.md`
 
 解压后一条命令安装并可用（手机 Termux / Linux 均可）。
@@ -42,6 +43,23 @@ git push --mirror toolchain-github
 ```
 
 `--mirror` 保证镜像和主仓库完全一致，杜绝内容偏差与遗漏。
+
+## 按需索取（vendor）—— 缺什么拉什么，不整仓搬运
+
+核心仓库（满全法OS/关系代数/Unicore）**不整仓并入**，缺哪个重要功能拉哪个：
+
+```bash
+bash pull.sh yuan-ji-jiu-can hunyuan-rs             # 拉满全法OS的Rust实现
+bash pull.sh relational-algebra relational_algebra  # 拉关系代数核心
+bash pull.sh Unicore src examples                   # 拉指令集源码与示例
+```
+
+产物在 `vendor/<来源仓库>/<路径>/`，**独立目录 + SOURCE.md 标注来源**：
+- 可辨：每个 vendor 子目录一眼看出是哪个仓库来的（不混合搅拌）
+- 可认：SOURCE.md 记录仓库/commit/日期，未来可核对版本
+- 可打：vendor 目录随 package.sh 一起打包，功能完整且来源清晰
+
+**拉取原则**：只拉自己缺的重要功能；不缺的不拉；拉进来的是独立可用模块。
 
 ## 未来核心合并路径（待用户授权后执行）
 

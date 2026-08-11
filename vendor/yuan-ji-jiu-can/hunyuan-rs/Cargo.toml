@@ -1,0 +1,27 @@
+[package]
+name = "mqf"
+version = "0.3.0"
+edition = "2021"
+authors = ["lolict & 刘楚恬 <mqf@manquanca.info>"]
+description = "满全法 · 囡囝共生元 OS — Rust 核心"
+license = "Proprietary"
+repository = "https://github.com/lolict/hunyuan-os"
+
+[dependencies]
+# 零依赖设计: 仅用 std, 如需加密则上 curve25519-dalek + aes-gcm
+# 现在阶段: 纯 std
+
+[lib]
+name = "mqf"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mqf"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"      # 体积优先
+lto = true           # 链接期优化
+strip = true         # 去除符号
+codegen-units = 1    # 单 CGU 利于 LTO
+panic = "abort"
