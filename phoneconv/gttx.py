@@ -34,6 +34,17 @@ CHANNELS = {
 }
 
 
+INTENT_KEYWORDS = {
+    "brain": ["记住", "记忆", "存入", "收录", "学习", "记住它", "收纳", "归档"],
+    "docx": ["word", "文档", "编辑", "改写"],
+    "epub": ["阅读", "电子书", "kindle"],
+    "pdf": ["pdf", "打印", "存档", "备份"],
+    "txt": ["文本", "纯文本", "提取文字"],
+    "svg": ["矢量", "图形"],
+    "chm": ["帮助", "chm", "手册"],
+}
+
+
 def parse_uri(uri):
     m = re.match(r"^gttx://([^:]+):(.+)$", uri)
     if m:
@@ -42,6 +53,26 @@ def parse_uri(uri):
     if m2:
         return "all", m2.group(1)
     return None, None
+
+
+def extract_source(text):
+    m = re.search(r"https?://\S+", text)
+    if m:
+        return m.group(0)
+    m = re.search(r"[\w-]+(\.[\w-]+)+", text)
+    if m:
+        return "https://" + m.group(0)
+    if os.path.exists(text.strip()):
+        return text.strip()
+    return None
+
+
+def infer_intent(text):
+    for ch, kws in INTENT_KEYWORDS.items():
+        for kw in kws:
+            if kw.lower() in text.lower():
+                return ch
+    return "all"
 
 
 def resolve_channel(target):
@@ -76,6 +107,7 @@ def main():
         print('  python gttx.py "gttx://pdf:https://example.com"')
         print('  python gttx.py "gttx://all:本地文件.mht"')
         print('  python gttx.py "gttx://brain:https://example.com"')
+        print('  python gttx.py "gttx://intent:记住 https://example.com"')
         print('  python gttx.py "gttx://list"')
         return
     uri = args[0]
@@ -88,6 +120,11 @@ def main():
     if target is None:
         print("URI 无法解析:", uri)
         return
+    if target == "intent":
+        intent = infer_intent(src)
+        src = extract_source(src) or src
+        print("意图推断: %s" % intent)
+        target = intent
     channels = resolve_channel(target)
     if not channels:
         print("未知目标 [%s]。可用: %s" % (target, ", ".join(CHANNELS)))
