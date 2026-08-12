@@ -1,0 +1,13 @@
+# 管线定义 · 链式传导流水线
+# 格式: 管线 | 步骤1 | 步骤2 | ...
+# 占位符: {n}=命令行参数  {in}=上一步输出(trim)
+# 步骤工具必须已注册进链系统
+
+# 编码传导闭环: 数值 → 颜色编码 → 解码回数值
+编码传导 | color42_rs/target/release/color42 qe {n} 颜色 3 | color42_rs/target/release/color42 qd {in}
+
+# 关系链校验: 检查 vendor 支撑完整性
+关系校验 | python3 checkdeps.py vendor/relational-algebra
+
+# 镜像链打包: 打包主仓库全量校验
+镜像打包 | bash package.sh

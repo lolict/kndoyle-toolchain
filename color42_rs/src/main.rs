@@ -151,6 +151,19 @@ fn main() {
                 vm::run(&ops)?;
                 Ok(format!("== 程序结束 ({}) ==", path))
             }
+            "qe" => {
+                // 干净编码: 仅输出编码结果
+                let v: u64 = args.get(1).ok_or("缺少数值")?.parse().map_err(|_| "数值须为数字")?;
+                let t = table(tname(2));
+                let d: usize = if args.len() > 3 { args[3].parse().unwrap_or(3) } else { 3 };
+                encode(t, v, d)
+            }
+            "qd" => {
+                // 干净解码: 仅输出数值
+                let s = args.get(1).ok_or("缺少字串")?;
+                let t = table(tname(2));
+                decode(t, s).map(|v| v.to_string())
+            }
             "v" => {
                 let ch = args.get(1).ok_or("缺少字")?.chars().next().ok_or("空字")?;
                 let t = table(tname(2));

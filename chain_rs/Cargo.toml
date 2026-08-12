@@ -1,0 +1,10 @@
+[package]
+name = "chain"
+version = "0.1.0"
+edition = "2021"
+description = "链系统 · 认识传导工具链 (Rust 零依赖)"
+license = "MIT"
+
+[[bin]]
+name = "chain"
+path = "src/main.rs"
