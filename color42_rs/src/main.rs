@@ -42,6 +42,19 @@ const RHYTHM_GRADIENT: [&str; 6] = [
     "赤基", "黄系·光", "绿系·生", "蓝系·冷", "泽系·石", "光系·韵",
 ];
 
+fn rules_path() -> String {
+    if let Ok(p) = env::var("COLOR42_RULES") {
+        return p;
+    }
+    let candidates = ["rules/vm.chain", "color42_rs/rules/vm.chain"];
+    for c in candidates {
+        if std::path::Path::new(c).exists() {
+            return c.to_string();
+        }
+    }
+    "rules/vm.chain".to_string()
+}
+
 fn table(name: &str) -> &'static [&'static str; 6] {
     match name {
         "韵律" | "rhythm" => &RHYTHM_ROWS,
@@ -147,9 +160,20 @@ fn main() {
             "run" => {
                 let path = args.get(1).ok_or("缺少程序文件")?;
                 let src = fs::read_to_string(path).map_err(|e| format!("读取失败: {}", e))?;
-                let ops = vm::parse(&src)?;
+                let rules = vm::load_rules(&rules_path())?;
+                let ops = vm::parse(&src, &rules)?;
                 vm::run(&ops)?;
                 Ok(format!("== 程序结束 ({}) ==", path))
+            }
+            "rules" => {
+                let rules = vm::load_rules(&rules_path())?;
+                let mut sorted: Vec<_> = rules.iter().collect();
+                sorted.sort_by_key(|(c, _)| **c);
+                let mut out = String::new();
+                for (ch, r) in sorted {
+                    out.push_str(&format!("{} | {} | {}\n", ch, r.op, r.nargs));
+                }
+                Ok(out)
             }
             "qe" => {
                 // 干净编码: 仅输出编码结果
