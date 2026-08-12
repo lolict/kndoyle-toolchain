@@ -1,0 +1,10 @@
+[package]
+name = "color42"
+version = "0.1.0"
+edition = "2021"
+description = "汉字本体颜色编码 - 三维进制编码 (Rust 零依赖)"
+license = "MIT"
+
+[[bin]]
+name = "color42"
+path = "src/main.rs"
