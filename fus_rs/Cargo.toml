@@ -1,0 +1,10 @@
+[package]
+name = "fusion"
+version = "0.1.0"
+edition = "2021"
+description = "智能共同体协议融合网关 (Rust 零依赖核心)"
+license = "MIT"
+
+[[bin]]
+name = "fusion"
+path = "src/main.rs"
