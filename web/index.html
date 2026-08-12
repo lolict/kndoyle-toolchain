@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gttx 浏览器运行时 · 标签演示</title>
+    <script src="gttx-runtime.js" defer></script>
+</head>
+<body style="font-family: system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 20px;">
+    <h2>gttx 浏览器运行时 — 让浏览器直接解析我们的标签</h2>
+    <p style="color:#666">原理: Web Components 自定义元素 + 自定义 script 类型。浏览器原生解析, 不需要任何服务器。</p>
+    <hr>
+
+    <h3>1. 显示链 gkhtml 标签（浏览器自定义元素）</h3>
+    <gk-html>这是 <b>gkhtml</b> 标签渲染的内容 — 浏览器原生解析, 无服务器参与</gk-html>
+
+    <h3>2. 关系链 gkndr 标签</h3>
+    <gkndr>这是 <b>gkndr</b> 标签 — 关系链容器</gkndr>
+
+    <h3>3. 智能索引链 mlil 标签（42 进制编码）</h3>
+    <p>
+        数值 100 → <mlil value="100"></mlil>（三维编码）<br>
+        数值 42 → <mlil value="42"></mlil><br>
+        数值 74087 → <mlil value="74087"></mlil>（最大值）
+    </p>
+
+    <h3>4. hf 融合系 hftqml 语法容器</h3>
+    <hftqml>hfqimiyiti = 融合夫妻命一体 · hfqmlt = 核心缩写</hftqml>
+
+    <h3>5. 自定义 script 类型（完整前端语言入口）</h3>
+    <script type="text/gkhtml">
+gkhtml {
+    chain: 显示链
+    up: gttx → 用户
+}
+    </script>
+    <p><code>gkhtml</code> 这个 script 类型浏览器不认识所以不执行, 运行时读取并渲染 — 这就是你的前端语言的解析入口。</p>
+
+    <hr>
+    <h3>6. 链上溯源</h3>
+    <div data-gk-uri="gkhtml://显示链" style="background:#f0f0f0;padding:8px;border-radius:4px"></div>
+    <div data-gk-uri="gttx://lctcf.fqmy.gttx" style="background:#f0f0f0;padding:8px;border-radius:4px;margin-top:4px"></div>
+    <p style="color:#666">所有标签都附着 gttx 顶级链 → 上报唯一上层（用户）。</p>
+</body>
+</html>
