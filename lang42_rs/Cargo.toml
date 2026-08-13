@@ -1,0 +1,10 @@
+[package]
+name = "lang42"
+version = "0.1.0"
+edition = "2021"
+description = "声韵调层级进制 - 以人类语言为单位的进制 (Rust 零依赖)"
+license = "MIT"
+
+[[bin]]
+name = "lang42"
+path = "src/main.rs"
