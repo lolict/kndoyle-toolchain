@@ -1,0 +1,10 @@
+[package]
+name = "kan42"
+version = "0.1.0"
+edition = "2021"
+description = "感知进制链 - 全量化辅助状态变化/身份互换 (Rust 零依赖)"
+license = "MIT"
+
+[[bin]]
+name = "kan42"
+path = "src/main.rs"
