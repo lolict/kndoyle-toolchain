@@ -26,3 +26,4 @@ r空间链 | hieyair | 空间维度 · 位置映射 | brain/build.py
 显示链 | gttx | 呈现展示 · 前端渲染 | fusion
 条件链 | gttx | 条件判定 · 逻辑门 | checkdeps.py
 轨道链 | gttx | 执行轨道 · 流水线调度 | package.sh
+指令环境链 | gttx | 沙箱模拟指令 · 规则即数据 · 缺什么补什么 | cmdenv

@@ -73,3 +73,7 @@ COMMIT=$(git -C "$TMP" rev-parse HEAD)
 
 rm -rf "$TMP"
 echo "==> 完成: vendor/$NAME/  (来源已记录在 SOURCE.md)"
+
+# 拉取后自动检查：支撑完整性 + 与主仓库重复
+echo "==> 自动检查中..."
+python3 checkdeps.py "$NAME"

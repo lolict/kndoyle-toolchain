@@ -2,6 +2,9 @@
 
 **一体混元多用 —— 一个平台，所有系统。**
 
+> 思路规划（过去/现在/未来）见 `ROADMAP.md`；编程工具身份安排见
+> `brain/docs/toolchain_identity.md`；符号词典见 `kndoyle-symbols.md`。
+
 ## 八模块
 
 | 主权 | 模块 | 能力 |

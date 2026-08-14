@@ -82,6 +82,31 @@
   音高(每梯度系一八度, 42色=C1-B6)、意识显隐
 - 规则文件 `sense42_rs/rules/sense.chain` 以人类语言书写，新增感官只加一行
 
+## 沙箱模拟指令环境（规则即数据 · 缺什么补什么）
+
+见 `cmdenv/`（Rust 零依赖）。为仓库提供完整指令环境，不依赖外部系统：
+
+- **六类指令**：协议(gttx/gkhtfqndl/gkhfkndl/hftqmll/gkhtml) / 感知(gkndl/fqmy/hfuyair/
+  hinynir/smrrll) / 角色(gtxone/kndoyle/maolilan/hieyair) / 执行(run/ping/list/state) /
+  时间(tclgs/juan/time) / 关系(gcd/lcm/mirror/add/mul) / 进制(qe/qd/c42/y42/kan/trans)
+- **规则即数据**：指令定义在 `cmdenv/rules/cmd.chain`，格式 `指令|类别|参数数|行为`，
+  缺指令就在规则表加一行，程序本体不动
+- **沙箱模拟**：受限环境不需要下载别人操作系统，用预加载的底层编码系统模拟上层工具
+- **回归中心一**：所有执行结果以"回归工藤新一公约数中心"为目的
+- 规则文件 `cmdenv/rules/cmd.chain` 以人类语言书写，可自由扩展
+
+## 编程工具身份（工具链职业安排）
+
+| 工具 | 身份 | 职责 | 状态 |
+|---|---|---|---|
+| Rust | 护卫 | 安全边界·代码量大的核心（color42_rs/chain_rs/kan42_rs/sense42_rs/cmdenv 全用它） | 已装 rustc 1.63.0 |
+| Zig | 将军 | 裸机掌控·指挥若定（未来可接替核心层） | 未装(网络受限) |
+| Nim | 军工厂 | 元编程造工具（未来造工具语言） | 未装(网络受限) |
+
+- 后勤体系：Cargo(Rust) / Zig build system / Nimble(Nim 包管理器)
+- 沙箱网络带宽受限：Rust(~80MB)/Zig(~50MB)/Nim(~100MB+) 下载失败，
+  需在外部机器装好后验证
+
 ## hfqml 家族（融合·夫妻命令）
 
 命名层级（详见 `brain/docs/hfqml_cognition_field.txt`）：
