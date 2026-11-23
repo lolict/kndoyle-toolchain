@@ -1,0 +1,12 @@
+#!/bin/bash
+# 可移植入口：先找解压后的 slang-full，没有就提示解压命令
+D="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -x "$D/slang-full/slangc" ]; then
+  exec env LD_LIBRARY_PATH="$D/slang-full" "$D/slang-full/slangc" "$@"
+elif [ -f "$D/slang-2026.22.1.tar.gz" ]; then
+  echo "请先解压: tar xzf $D/slang-2026.22.1.tar.gz -C $D --strip-components=1" >&2
+  exit 1
+else
+  echo "未找到 slangc，请下载 slang-2026.22.1.tar.gz 到 $(dirname "$D")" >&2
+  exit 1
+fi
